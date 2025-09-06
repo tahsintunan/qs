@@ -1,0 +1,17 @@
+[package]
+name = "qs"
+version = "0.1.0"
+edition = "2021"
+authors = ["Tahsin Tunan <tahsintunan@gmail.com>"]
+description = "Quick SSH - Dead simple, zero-friction SSH wrapper that makes working with remote machines effortless"
+license = "MIT"
+repository = "https://github.com/tahsintunan/qs"
+keywords = ["ssh", "remote", "multiplexing", "cli", "devops"]
+categories = ["command-line-utilities", "network-programming"]
+readme = "README.md"
+
+[dependencies]
+clap = { version = "4.5.47", features = ["derive"] }
+serde = { version = "1.0.219", features = ["derive"] }
+toml = "0.9.5"
+dirs = "6.0.0"
