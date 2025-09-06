@@ -10,19 +10,22 @@ pub enum Commands {
 
     /// Add a new host
     Add {
-        name: String,
+        alias: String,
+        #[arg(short, long)]
         host: String,
         #[arg(short, long)]
-        user: Option<String>,
+        user: String,
         #[arg(short, long, help = "Skip SSH key copy")]
         skip_key: bool,
         #[arg(short = 'd', long, help = "Make this host the default")]
         is_default: bool,
+        #[arg(short = 'o', long, help = "Overwrite if alias already exists")]
+        overwrite: bool,
     },
 
     /// Remove a host
     Remove {
-        name: String,
+        alias: String,
     },
 
     /// List all configured hosts
@@ -30,19 +33,19 @@ pub enum Commands {
 
     /// Set the default host
     SetDefault {
-        name: String,
+        alias: String,
     },
 
     /// Connect to a host via SSH
     Connect {
         #[arg(default_value = "default")]
-        name: String,
+        alias: String,
     },
 
     /// Execute a command on a host
     Exec {
         #[arg(default_value = "default")]
-        host: String,
+        alias: String,
         #[arg(last = true)]
         cmd: Vec<String>,
     },
@@ -50,13 +53,13 @@ pub enum Commands {
     /// Send files to a host
     Send {
         source: String,
-        #[arg(help = "Format: [host:]destination")]
+        #[arg(help = "Format: [alias:]destination")]
         dest: String,
     },
 
     /// Get files from a host
     Get {
-        #[arg(help = "Format: [host:]source")]
+        #[arg(help = "Format: [alias:]source")]
         source: String,
         dest: String,
     },
@@ -64,6 +67,6 @@ pub enum Commands {
     /// Show connection status for a host
     Status {
         #[arg(default_value = "default")]
-        name: String,
+        alias: String,
     },
 }

@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-use crate::config::Host;
+use crate::config::Profile;
 
 pub fn check_dependencies() -> Result<(), String> {
     let mut missing = Vec::new();
@@ -86,12 +86,8 @@ pub fn setup_multiplex() -> Vec<String> {
     ]
 }
 
-pub fn ssh_target(host: &Host) -> String {
-    if let Some(user) = &host.user {
-        format!("{}@{}", user, host.host)
-    } else {
-        host.host.clone()
-    }
+pub fn ssh_target(profile: &Profile) -> String {
+    format!("{}@{}", profile.user, profile.host)
 }
 
 pub fn ensure_ssh_key() -> PathBuf {
@@ -122,14 +118,14 @@ pub fn ensure_ssh_key() -> PathBuf {
     key_path
 }
 
-pub fn copy_ssh_key_manual(host: &Host) {
+pub fn copy_ssh_key_manual(profile: &Profile) {
     let key_path = ensure_ssh_key();
     let pub_key_path = format!("{}.pub", key_path.display());
 
     // Read the public key
     let pubkey = fs::read_to_string(&pub_key_path).expect("Failed to read public key");
 
-    println!("Copying SSH key to {}...", host.host);
+    println!("Copying SSH key to {}...", profile.host);
     println!("You'll need to enter the password for this host:");
 
     // Create the SSH command to add the key
@@ -144,7 +140,7 @@ pub fn copy_ssh_key_manual(host: &Host) {
 
     let mut cmd = Command::new("ssh");
     cmd.arg("-o").arg("StrictHostKeyChecking=accept-new");
-    cmd.arg(ssh_target(host));
+    cmd.arg(ssh_target(profile));
     cmd.arg(remote_cmd);
 
     match cmd.status() {
@@ -156,7 +152,7 @@ pub fn copy_ssh_key_manual(host: &Host) {
             eprintln!(
                 "  cat {} | ssh {} 'cat >> ~/.ssh/authorized_keys'",
                 pub_key_path,
-                ssh_target(host)
+                ssh_target(profile)
             );
         }
     }

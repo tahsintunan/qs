@@ -1,14 +1,17 @@
-# qs - Quick SSH
+# Detailed Usage Guide
 
 ## Install
 
 ```bash
-# Clone and build
+# Install directly from Cargo
+cargo install qs
+
+# Or build from source
 cargo build --release
 sudo cp target/release/qs /usr/local/bin/
 
-# Or install directly
-cargo install --path .
+# Or use make tool
+make install
 ```
 
 ## Quick Start
@@ -20,12 +23,11 @@ qs check
 # 2. Initialize SSH keys
 qs init
 
-# 3. Add your machines
-qs add HOST_NAME 192.168.1.100 --user chief
-# Enter password once when prompted
+# 3. Add your machines (enter password once when prompted)
+qs add myserver -h 192.168.1.100 -u username
 
 # 4. Use it!
-qs connect              # Connect to default host
+qs connect              # Connect to default profile
 qs send file.txt /tmp/  # Send file
 qs get /etc/hosts ./    # Get file
 qs exec "docker ps"     # Run command
@@ -36,59 +38,60 @@ qs exec "docker ps"     # Run command
 ### Setup Commands
 
 ```bash
-qs check                          # Check if ssh, rsync are installed
-qs init                           # Create SSH keys if needed
-qs add <name> <host> [--user u]     # Add host & copy SSH key
-qs add HOST_NAME 10.0.0.5 --skip-key  # Add without key setup
-qs add HOST_NAME 10.0.0.6 --is-default # Add and make default
-qs remove HOST_NAME                   # Remove a host
-qs set-default HOST_NAME               # Change default host
+qs check                                          # Check if ssh, rsync are installed
+qs init                                           # Create SSH keys if needed
+qs add <alias> -h <host> -u <username>            # Add profile with alias & copy SSH key
+qs add webserver -h 10.0.0.5 -u bob --skip-key    # Add without key setup
+qs add database -h 10.0.0.6 -u alice --is-default # Add and make default
+qs add webserver -h 10.0.0.8 -u admin --overwrite # Replace existing alias
+qs remove webserver                               # Remove alias 'webserver'
+qs set-default database                           # Set 'database' as default profile
 ```
 
 ### Daily Use
 
 ```bash
 # Connect
-qs connect              # Default host
-qs connect HOST_NAME    # Specific host
+qs connect              # Connect to default profile
+qs connect webserver    # Connect to specific profile
 
 # Transfer files (uses rsync with progress)
 qs send file.txt /remote/path/
-qs send folder/ HOST_NAME:/backup/
+qs send folder/ webserver:/backup/
 qs get /var/log/app.log ./
-qs get HOST_NAME:/data/dump.sql ./backups/
+qs get database:/data/dump.sql ./backups/
 
 # Execute commands
 qs exec "ls -la"
-qs exec HOST_NAME "nvidia-smi"
+qs exec webserver "nvidia-smi"
 qs exec "cd /app && docker-compose up -d"
 
 # Manage hosts
-qs list                 # Show all hosts
-qs status               # Default host connection
-qs status HOST_NAME     # Specific host
+qs list                 # Show all configured aliases
+qs status               # Check default connection
+qs status webserver     # Check specific alias connection
 ```
 
 ## How It Works
 
 1. **SSH Multiplexing**: First connection creates a master socket in `~/.ssh/sockets/`. All subsequent operations reuse it (instant, no auth).
 
-2. **Auto Key Setup**: `qs add` automatically copies your SSH key to the remote host. No more password typing.
+2. **Auto Key Setup**: `qs add` automatically copies your SSH key to the remote host. No more password typing. You can use the `--skip-key` flag to avoid this step.
 
-3. **Smart Defaults**: First host becomes default. Most commands work without specifying host.
+3. **Smart Defaults**: First alias becomes default. Most commands work without specifying an alias.
 
 4. **Config Location**: `~/.config/qs/config.toml`
 
 ## Config Example
 
 ```toml
-default = "HOST_NAME"
+default = "webserver"
 
-[hosts.HOST_NAME]
+[profiles.webserver]
 host = "192.168.1.100"
-user = "chief"
+user = "bob"
 
-[hosts.HOST_NAME_2]
+[profiles.database]
 host = "10.0.0.50"
 user = "admin"
 ```
@@ -96,7 +99,7 @@ user = "admin"
 ## Tips
 
 - Connection stays alive for 10 minutes after last use
-- Use `host:path` syntax to specify different hosts in file operations
+- Use `alias:path` syntax to specify different hosts in file operations
 - All rsync flags: `-avz --progress` (archive, verbose, compress, progress bar)
 - Works on macOS and Linux (checks for dependencies)
 

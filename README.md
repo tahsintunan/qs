@@ -22,29 +22,23 @@ Dead simple, zero-friction SSH wrapper that makes working with remote machines e
 cargo install qs
 ```
 
-Or build from source:
-```bash
-cargo build --release
-sudo cp target/release/qs /usr/local/bin/
-```
-
-## Usage
+## Usage Example
 
 ```bash
 # Setup (one time)
 qs init                                  # Create SSH keys
-qs add HOST_NAME 192.168.1.100 --user bob # Add host (auto-copies SSH key)
+qs add myserver -h 192.168.1.100 -u bob  # Add profile with alias 'myserver'
 
 # Daily use (no passwords!)
-qs connect                               # SSH to default host
-qs send project.tar.gz /tmp/            # Upload file
-qs get /var/log/app.log ./              # Download file
+qs connect                               # SSH to default profile
+qs send project.tar.gz /tmp/             # Upload file
+qs get /var/log/app.log ./               # Download file
 qs exec "docker ps"                      # Run remote command
 
 # Host management
-qs list                                  # Show all hosts
-qs remove HOST_NAME                      # Remove a host
-qs set-default HOST_NAME                 # Change default host
+qs list                                  # Show all profiles
+qs remove myserver                       # Remove profile by the alias 'myserver'
+qs set-default myserver                  # Set 'myserver' as default
 ```
 
 For detailed usage and examples, see [USAGE.md](USAGE.md).

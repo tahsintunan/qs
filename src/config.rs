@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub default: Option<String>,
-    pub hosts: HashMap<String, Host>,
+    pub profiles: HashMap<String, Profile>,
 }
 
 impl Config {
@@ -33,10 +33,10 @@ impl Config {
             .join("config.toml")
     }
 
-    pub fn get_host(&self, name: &str) -> Option<&Host> {
-        self.hosts.get(name).or_else(|| {
-            if name == "default" {
-                self.default.as_ref().and_then(|n| self.hosts.get(n))
+    pub fn get_profile(&self, alias: &str) -> Option<&Profile> {
+        self.profiles.get(alias).or_else(|| {
+            if alias == "default" {
+                self.default.as_ref().and_then(|n| self.profiles.get(n))
             } else {
                 None
             }
@@ -48,13 +48,13 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             default: None,
-            hosts: HashMap::new(),
+            profiles: HashMap::new(),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Host {
+pub struct Profile {
     pub host: String,
-    pub user: Option<String>,
+    pub user: String,
 }
