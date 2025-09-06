@@ -1,5 +1,6 @@
 use clap::Parser;
 use std::io::{self, Write};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 mod command;
@@ -164,9 +165,9 @@ fn main() {
         Commands::Send { source, dest } => {
             let (alias_name, remote_path) = if dest.contains(':') {
                 let parts: Vec<_> = dest.splitn(2, ':').collect();
-                (parts[0], parts[1])
+                (parts[0], parts[1].to_string())
             } else {
-                ("default", dest.as_str())
+                ("default", dest.clone())
             };
 
             let profile = config.get_profile(alias_name).unwrap_or_else(|| {
@@ -177,14 +178,24 @@ fn main() {
                 std::process::exit(1);
             });
 
+            let absolute_source = std::env::current_dir()
+                .unwrap_or_else(|_| PathBuf::from("."))
+                .join(&source);
+
+            if !absolute_source.exists() {
+                eprintln!("Error: Source file '{}' does not exist", source);
+                eprintln!("Looking for: {}", absolute_source.display());
+                std::process::exit(1);
+            }
+
             println!("Sending {} → {}:{}", source, alias_name, remote_path);
 
             let mut cmd = Command::new("rsync");
-            cmd.arg("-avz");
+            cmd.arg("-az");
             cmd.arg("--progress");
             cmd.arg("-e");
             cmd.arg(format!("ssh {}", setup_multiplex().join(" ")));
-            cmd.arg(&source);
+            cmd.arg(absolute_source.to_string_lossy().to_string());
             cmd.arg(format!("{}:{}", ssh_target(profile), remote_path));
 
             if !cmd.status().map(|s| s.success()).unwrap_or(false) {
@@ -196,9 +207,9 @@ fn main() {
         Commands::Get { source, dest } => {
             let (alias_name, remote_path) = if source.contains(':') {
                 let parts: Vec<_> = source.splitn(2, ':').collect();
-                (parts[0], parts[1])
+                (parts[0], parts[1].to_string())
             } else {
-                ("default", source.as_str())
+                ("default", source.clone())
             };
 
             let profile = config.get_profile(alias_name).unwrap_or_else(|| {
@@ -209,15 +220,19 @@ fn main() {
                 std::process::exit(1);
             });
 
+            let absolute_dest = std::env::current_dir()
+                .unwrap_or_else(|_| PathBuf::from("."))
+                .join(&dest);
+
             println!("Getting {}:{} → {}", alias_name, remote_path, dest);
 
             let mut cmd = Command::new("rsync");
-            cmd.arg("-avz");
+            cmd.arg("-az");
             cmd.arg("--progress");
             cmd.arg("-e");
             cmd.arg(format!("ssh {}", setup_multiplex().join(" ")));
             cmd.arg(format!("{}:{}", ssh_target(profile), remote_path));
-            cmd.arg(&dest);
+            cmd.arg(absolute_dest.to_string_lossy().to_string());
 
             if !cmd.status().map(|s| s.success()).unwrap_or(false) {
                 eprintln!("\n✗ Transfer failed");
