@@ -12,7 +12,8 @@ use config::Config;
 use crate::command::Commands;
 use crate::config::Profile;
 use crate::util::{
-    check_dependencies, copy_ssh_key_manual, ensure_ssh_key, setup_multiplex, ssh_target,
+    check_dependencies, copy_ssh_key_manual, ensure_ssh_key, remove_alias, setup_multiplex,
+    ssh_target, validate_alias,
 };
 
 #[derive(Parser)]
@@ -26,7 +27,11 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
-    let mut config = Config::load();
+    let mut config = Config::load().unwrap_or_else(|err| {
+        eprintln!("Error loading config: {err}");
+        eprintln!("Please fix the config file or remove it to start fresh.");
+        std::process::exit(1);
+    });
 
     match cli.command {
         Commands::Check => {
@@ -39,7 +44,7 @@ fn main() {
                     println!("✓ rsync");
                 }
                 Err(msg) => {
-                    eprintln!("{}", msg);
+                    eprintln!("{msg}");
                     std::process::exit(1);
                 }
             }
@@ -47,7 +52,7 @@ fn main() {
 
         Commands::Init => {
             if let Err(msg) = check_dependencies() {
-                eprintln!("{}", msg);
+                eprintln!("{msg}");
                 eprintln!("Run 'qs check' after installing missing tools");
                 std::process::exit(1);
             }
@@ -55,7 +60,7 @@ fn main() {
             let key_path = ensure_ssh_key();
             println!("✓ SSH key ready at {}", key_path.display());
             println!("✓ Public key at {}.pub", key_path.display());
-            println!("\nNext: Add a host with 'qs add <alias> -h <host> -u <user>'");
+            println!("\nNext: Add a host with 'qs add <alias> -host <host> -user <user>'");
         }
 
         Commands::Add {
@@ -67,19 +72,18 @@ fn main() {
             overwrite,
         } => {
             if let Err(msg) = check_dependencies() {
-                eprintln!("{}", msg);
+                eprintln!("{msg}");
                 std::process::exit(1);
             }
 
-            if alias == "default" {
-                eprintln!("Error: 'default' is a reserved alias name");
-                eprintln!("Please choose a different name for your host profile");
+            if let Err(error) = validate_alias(&alias) {
+                eprintln!("Error: {error}");
                 std::process::exit(1);
             }
 
             if let Some(existing_host) = config.profiles.get(&alias) {
                 if !overwrite {
-                    eprintln!("Error: Alias '{}' already exists", alias);
+                    eprintln!("Error: Alias '{alias}' already exists");
                     eprintln!("  Host: {}", existing_host.host);
                     eprintln!("  User: {}", existing_host.user);
                     eprintln!("\nUse --overwrite to replace the existing alias");
@@ -97,44 +101,40 @@ fn main() {
 
             if is_default || config.default.is_none() {
                 config.default = Some(alias.clone());
-                println!("✓ Set {} as default", alias);
+                println!("✓ Set {alias} as default");
             }
-            config.save();
-            println!("✓ Added alias: {}", alias);
+            if let Err(e) = config.save() {
+                eprintln!("Error saving config: {e}");
+                std::process::exit(1);
+            }
+            println!("✓ Added alias: {alias}");
         }
 
-        Commands::Remove { alias } => {
-            if !config.profiles.contains_key(&alias) {
-                eprintln!("Alias '{}' not found", alias);
+        Commands::Remove { alias } => match remove_alias(&mut config, &alias) {
+            Ok(messages) => {
+                for message in messages {
+                    println!("{message}");
+                }
+
+                if let Err(e) = config.save() {
+                    eprintln!("Error saving config: {e}");
+                    std::process::exit(1);
+                }
+            }
+            Err(error) => {
+                eprintln!("{error}");
                 eprintln!("\nAvailable aliases:");
                 for alias_name in config.profiles.keys() {
-                    eprintln!("  - {}", alias_name);
+                    eprintln!("  - {alias_name}");
                 }
                 std::process::exit(1);
             }
-
-            config.profiles.remove(&alias);
-
-            if config.default.as_ref() == Some(&alias) {
-                config.default = None;
-                println!("✓ Removed default alias '{}'", alias);
-
-                if config.profiles.len() == 1 {
-                    let new_default = config.profiles.keys().next().unwrap().clone();
-                    config.default = Some(new_default.clone());
-                    println!("✓ Set '{}' as new default", new_default);
-                }
-            } else {
-                println!("✓ Removed alias '{}'", alias);
-            }
-
-            config.save();
-        }
+        },
 
         Commands::List => {
             if config.profiles.is_empty() {
                 println!(
-                    "No hosts configured. Use 'qs add <alias> -h <host> -u <user>' to add one."
+                    "No hosts configured. Use 'qs add <alias> -host <host> -user <user>' to add one."
                 );
                 return;
             }
@@ -151,13 +151,13 @@ fn main() {
         }
 
         Commands::Connect { alias } => {
-            let profile = config.get_profile(&alias).unwrap_or_else(|| {
-                eprintln!("Alias '{}' not found. Use 'qs add' to configure it.", alias);
+            let profile = config.get_profile(&alias).unwrap_or_else(|err| {
+                eprintln!("{err}");
                 std::process::exit(1);
             });
 
             let mut cmd = Command::new("ssh");
-            cmd.args(&setup_multiplex());
+            cmd.args(setup_multiplex());
             cmd.arg(ssh_target(profile));
             cmd.status().ok();
         }
@@ -170,11 +170,8 @@ fn main() {
                 ("default", dest.clone())
             };
 
-            let profile = config.get_profile(alias_name).unwrap_or_else(|| {
-                eprintln!(
-                    "Alias '{}' not found. Use 'qs add' to configure it.",
-                    alias_name
-                );
+            let profile = config.get_profile(alias_name).unwrap_or_else(|err| {
+                eprintln!("{err}");
                 std::process::exit(1);
             });
 
@@ -183,12 +180,12 @@ fn main() {
                 .join(&source);
 
             if !absolute_source.exists() {
-                eprintln!("Error: Source file '{}' does not exist", source);
+                eprintln!("Error: Source file '{source}' does not exist");
                 eprintln!("Looking for: {}", absolute_source.display());
                 std::process::exit(1);
             }
 
-            println!("Sending {} → {}:{}", source, alias_name, remote_path);
+            println!("Sending {source} → {alias_name}:{remote_path}");
 
             let mut cmd = Command::new("rsync");
             cmd.arg("-az");
@@ -212,11 +209,8 @@ fn main() {
                 ("default", source.clone())
             };
 
-            let profile = config.get_profile(alias_name).unwrap_or_else(|| {
-                eprintln!(
-                    "Alias '{}' not found. Use 'qs add' to configure it.",
-                    alias_name
-                );
+            let profile = config.get_profile(alias_name).unwrap_or_else(|err| {
+                eprintln!("{err}");
                 std::process::exit(1);
             });
 
@@ -224,7 +218,7 @@ fn main() {
                 .unwrap_or_else(|_| PathBuf::from("."))
                 .join(&dest);
 
-            println!("Getting {}:{} → {}", alias_name, remote_path, dest);
+            println!("Getting {alias_name}:{remote_path} → {dest}");
 
             let mut cmd = Command::new("rsync");
             cmd.arg("-az");
@@ -249,32 +243,38 @@ fn main() {
                 std::process::exit(1);
             }
 
-            let profile = config.get_profile(&alias_name).unwrap_or_else(|| {
-                eprintln!(
-                    "Alias '{}' not found. Use 'qs add' to configure it.",
-                    alias_name
-                );
+            let profile = config.get_profile(&alias_name).unwrap_or_else(|err| {
+                eprintln!("{err}");
                 std::process::exit(1);
             });
 
             let mut ssh_cmd = Command::new("ssh");
-            ssh_cmd.args(&setup_multiplex());
+            ssh_cmd.args(setup_multiplex());
             ssh_cmd.arg(ssh_target(profile));
             ssh_cmd.arg(cmd.join(" "));
             ssh_cmd.status().ok();
         }
 
         Commands::Status { alias } => {
-            let profile = config.get_profile(&alias).unwrap_or_else(|| {
-                eprintln!("Alias '{}' not found", alias);
+            let profile = config.get_profile(&alias).unwrap_or_else(|err| {
+                eprintln!("{err}");
                 std::process::exit(1);
             });
 
-            print!("Checking connection to {}... ", alias);
+            let display_alias = if alias == "default" {
+                match config.default.as_ref() {
+                    Some(actual_alias) => format!("{actual_alias} [default]"),
+                    None => alias,
+                }
+            } else {
+                alias
+            };
+
+            print!("Checking connection to {display_alias}... ");
             io::stdout().flush().unwrap();
 
             let mut cmd = Command::new("ssh");
-            cmd.args(&setup_multiplex());
+            cmd.args(setup_multiplex());
             cmd.arg("-O");
             cmd.arg("check");
             cmd.arg(ssh_target(profile));
@@ -289,17 +289,20 @@ fn main() {
 
         Commands::SetDefault { alias } => {
             if !config.profiles.contains_key(&alias) {
-                eprintln!("Alias '{}' not found", alias);
+                eprintln!("Alias '{alias}' not found");
                 eprintln!("\nAvailable aliases:");
                 for alias_name in config.profiles.keys() {
-                    eprintln!("  - {}", alias_name);
+                    eprintln!("  - {alias_name}");
                 }
                 std::process::exit(1);
             }
 
             config.default = Some(alias.clone());
-            config.save();
-            println!("✓ Set {} as default", alias);
+            if let Err(e) = config.save() {
+                eprintln!("Error saving config: {e}");
+                std::process::exit(1);
+            }
+            println!("✓ Set {alias} as default");
         }
     }
 }

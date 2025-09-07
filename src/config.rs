@@ -2,27 +2,44 @@ use std::{collections::HashMap, fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct Config {
     pub default: Option<String>,
     pub profiles: HashMap<String, Profile>,
 }
 
 impl Config {
-    pub fn load() -> Self {
-        let path = Self::path();
-        if path.exists() {
-            let content = fs::read_to_string(&path).unwrap_or_default();
-            toml::from_str(&content).unwrap_or_default()
-        } else {
-            Self::default()
-        }
+    pub fn load() -> Result<Self, String> {
+        Self::load_from(Self::path())
     }
 
-    pub fn save(&self) {
-        let path = Self::path();
-        fs::create_dir_all(path.parent().unwrap()).ok();
-        fs::write(path, toml::to_string_pretty(self).unwrap()).ok();
+    pub fn load_from(path: PathBuf) -> Result<Self, String> {
+        if !path.exists() {
+            return Ok(Self::default());
+        }
+
+        let content =
+            fs::read_to_string(&path).map_err(|e| format!("Failed to read config file: {e}"))?;
+
+        toml::from_str(&content).map_err(|e| format!("Invalid config file format: {e}"))
+    }
+
+    pub fn save(&self) -> Result<(), String> {
+        self.save_to(Self::path())
+    }
+
+    pub fn save_to(&self, path: PathBuf) -> Result<(), String> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create config directory: {e}"))?;
+        }
+
+        let content =
+            toml::to_string_pretty(self).map_err(|e| format!("Failed to serialize config: {e}"))?;
+
+        fs::write(&path, content).map_err(|e| format!("Failed to write config file: {e}"))?;
+
+        Ok(())
     }
 
     pub fn path() -> PathBuf {
@@ -33,27 +50,30 @@ impl Config {
             .join("config.toml")
     }
 
-    pub fn get_profile(&self, alias: &str) -> Option<&Profile> {
-        self.profiles.get(alias).or_else(|| {
-            if alias == "default" {
-                self.default.as_ref().and_then(|n| self.profiles.get(n))
-            } else {
-                None
+    pub fn get_profile(&self, alias: &str) -> Result<&Profile, String> {
+        if alias == "default" {
+            match &self.default {
+                Some(default_alias) => self
+                    .profiles
+                    .get(default_alias)
+                    .ok_or_else(|| format!("Default alias '{default_alias}' not found")),
+                None => {
+                    if self.profiles.is_empty() {
+                        Err("No host found. Add a host: 'qs add <alias> --host <host> --user <user>'".to_string())
+                    } else {
+                        Err("No default set. Use 'qs set-default <alias>'".to_string())
+                    }
+                }
             }
-        })
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            default: None,
-            profiles: HashMap::new(),
+        } else {
+            self.profiles
+                .get(alias)
+                .ok_or_else(|| format!("Alias '{alias}' doesn't exist"))
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Profile {
     pub host: String,
     pub user: String,

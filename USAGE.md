@@ -24,7 +24,7 @@ qs check
 qs init
 
 # 3. Add your machines (enter password once when prompted)
-qs add myserver -h 192.168.1.100 -u username
+qs add myserver --host 192.168.1.100 --user username
 
 # 4. Use it!
 qs connect              # Connect to default profile
@@ -38,14 +38,14 @@ qs exec "docker ps"     # Run command
 ### Setup Commands
 
 ```bash
-qs check                                          # Check if ssh, rsync are installed
-qs init                                           # Create SSH keys if needed
-qs add <alias> -h <host> -u <username>            # Add profile with alias & copy SSH key
-qs add webserver -h 10.0.0.5 -u bob --skip-key    # Add without key setup
-qs add database -h 10.0.0.6 -u alice --is-default # Add and make default
-qs add webserver -h 10.0.0.8 -u admin --overwrite # Replace existing alias
-qs remove webserver                               # Remove alias 'webserver'
-qs set-default database                           # Set 'database' as default profile
+qs check                                                  # Check if ssh, rsync are installed
+qs init                                                   # Create SSH keys if needed
+qs add <alias> --host <host> --user <username>            # Add profile with alias & copy SSH key
+qs add webserver --host 10.0.0.5 --user bob --skip-key    # Add without key setup
+qs add database --host 10.0.0.6 --user alice --is-default # Add and make default
+qs add webserver --host 10.0.0.8 --user admin --overwrite # Replace existing alias
+qs remove webserver                                       # Remove alias 'webserver'
+qs set-default database                                   # Set 'database' as default profile
 ```
 
 ### Daily Use
