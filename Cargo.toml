@@ -1,6 +1,6 @@
 [package]
 name = "qs"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Tahsin Tunan <tahsintunan@gmail.com>"]
 description = "Quick SSH - Dead simple, zero-friction SSH wrapper that makes working with remote machines effortless"

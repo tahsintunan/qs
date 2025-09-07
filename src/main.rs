@@ -19,7 +19,7 @@ use crate::util::{
 #[derive(Parser)]
 #[command(name = "qs")]
 #[command(about = "Quick SSH - Dead simple, zero-friction SSH wrapper")]
-#[command(version = "0.1.0")]
+#[command(version)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
