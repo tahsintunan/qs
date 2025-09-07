@@ -11,9 +11,9 @@ pub enum Commands {
     /// Add a new host
     Add {
         alias: String,
-        #[arg(short, long)]
+        #[arg(long)]
         host: String,
-        #[arg(short, long)]
+        #[arg(long)]
         user: String,
         #[arg(short, long, help = "Skip SSH key copy")]
         skip_key: bool,
@@ -24,17 +24,13 @@ pub enum Commands {
     },
 
     /// Remove a host
-    Remove {
-        alias: String,
-    },
+    Remove { alias: String },
 
     /// List all configured hosts
     List,
 
     /// Set the default host
-    SetDefault {
-        alias: String,
-    },
+    SetDefault { alias: String },
 
     /// Connect to a host via SSH
     Connect {

@@ -1,0 +1,4 @@
+# Rustfmt configuration
+# This ensures consistent formatting between rust-analyzer and CI
+
+edition = "2021"

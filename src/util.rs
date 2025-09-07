@@ -3,11 +3,10 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
-use crate::config::Profile;
+use crate::config::{Config, Profile};
 
 pub fn check_dependencies() -> Result<(), String> {
     let mut missing = Vec::new();
-
     let required = vec!["ssh", "ssh-keygen", "rsync"];
 
     for cmd in required {
@@ -23,46 +22,22 @@ pub fn check_dependencies() -> Result<(), String> {
     Ok(())
 }
 
-fn missing_tools_msg(missing: Vec<&str>) -> String {
+pub fn missing_tools_msg(missing: Vec<&str>) -> String {
     let mut msg = String::from("Missing required tools:\n\n");
 
-    let os = std::env::consts::OS;
-
-    let (install_cmd, ssh_package) = match os {
-        "macos" => ("brew install", "openssh"),
-        "linux" => {
-            if check_command("apt") {
-                ("sudo apt install", "openssh-client")
-            } else if check_command("yum") {
-                ("sudo yum install", "openssh-clients")
-            } else if check_command("dnf") {
-                ("sudo dnf install", "openssh-clients")
-            } else if check_command("pacman") {
-                ("sudo pacman -S", "openssh")
-            } else if check_command("zypper") {
-                ("sudo zypper install", "openssh")
-            } else {
-                ("check your distribution's package manager for", "openssh")
-            }
-        }
-        "windows" => ("install via WSL or Windows OpenSSH:", "openssh"),
-        _ => ("check your package manager for", "openssh"),
-    };
-
     for cmd in missing {
-        let package = match cmd {
-            "ssh" | "ssh-keygen" => ssh_package,
-            "rsync" => "rsync",
-            _ => cmd,
-        };
-        msg.push_str(&format!("  {} - Install with:\n", cmd));
-        msg.push_str(&format!("    {} {}\n\n", install_cmd, package));
+        msg.push_str(&format!("  • {cmd}\n"));
     }
+
+    msg.push_str("\nPlease install these tools using your system's package manager.\n");
+    msg.push_str("Common packages:\n");
+    msg.push_str("  • ssh/ssh-keygen: Usually in 'openssh' or 'openssh-client'\n");
+    msg.push_str("  • rsync: Usually in 'rsync'\n");
 
     msg
 }
 
-fn check_command(cmd: &str) -> bool {
+pub fn check_command(cmd: &str) -> bool {
     Command::new("which")
         .arg(cmd)
         .stdout(Stdio::null())
@@ -100,10 +75,10 @@ pub fn ensure_ssh_key() -> PathBuf {
         println!("No SSH key found. Creating one...");
 
         let output = Command::new("ssh-keygen")
-            .args(&["-t", "ed25519", "-f"])
+            .args(["-t", "ed25519", "-f"])
             .arg(&key_path)
-            .args(&["-N", ""]) // Empty passphrase
-            .args(&["-C", "qs-tool"])
+            .args(["-N", ""]) // Empty passphrase
+            .args(["-C", "qs-tool"])
             .output()
             .expect("Failed to generate SSH key");
 
@@ -116,6 +91,60 @@ pub fn ensure_ssh_key() -> PathBuf {
     }
 
     key_path
+}
+
+pub fn validate_alias(alias: &str) -> Result<(), String> {
+    if alias.is_empty() {
+        return Err("Alias cannot be empty".to_string());
+    }
+
+    if alias == "default" {
+        return Err("'default' is a reserved alias name".to_string());
+    }
+
+    if alias.contains(':') {
+        return Err("Alias cannot contain ':' character".to_string());
+    }
+
+    if alias.contains('/') {
+        return Err("Alias cannot contain '/' character".to_string());
+    }
+
+    if alias.starts_with('-') {
+        return Err("Alias cannot start with '-'".to_string());
+    }
+
+    Ok(())
+}
+
+pub fn remove_alias(config: &mut Config, alias: &str) -> Result<Vec<String>, String> {
+    let mut messages = Vec::new();
+
+    if !config.profiles.contains_key(alias) {
+        return Err(format!("Alias '{alias}' not found"));
+    }
+
+    config.profiles.remove(alias);
+
+    if config.default.as_ref() == Some(&alias.to_string()) {
+        config.default = None;
+        messages.push(format!("✓ Removed default alias '{alias}'"));
+
+        match config.profiles.len() {
+            0 => messages.push("  No aliases remaining".to_string()),
+            1 => {
+                let new_default = config.profiles.keys().next().unwrap().clone();
+                config.default = Some(new_default.clone());
+                messages.push(format!("✓ Set '{new_default}' as new default"));
+            }
+            _ => messages
+                .push("  No default set. Use 'qs set-default <alias>' to set one.".to_string()),
+        }
+    } else {
+        messages.push(format!("✓ Removed alias '{alias}'"));
+    }
+
+    Ok(messages)
 }
 
 pub fn copy_ssh_key_manual(profile: &Profile) {
