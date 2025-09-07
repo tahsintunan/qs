@@ -60,7 +60,7 @@ fn main() {
             let key_path = ensure_ssh_key();
             println!("✓ SSH key ready at {}", key_path.display());
             println!("✓ Public key at {}.pub", key_path.display());
-            println!("\nNext: Add a host with 'qs add <alias> -host <host> -user <user>'");
+            println!("\nNext: Add a host with 'qs add <alias> --host <host> --user <user>'");
         }
 
         Commands::Add {
@@ -134,7 +134,7 @@ fn main() {
         Commands::List => {
             if config.profiles.is_empty() {
                 println!(
-                    "No hosts configured. Use 'qs add <alias> -host <host> -user <user>' to add one."
+                    "No hosts configured. Use 'qs add <alias> --host <host> --user <user>' to add one."
                 );
                 return;
             }
