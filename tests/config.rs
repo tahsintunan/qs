@@ -29,6 +29,7 @@ fn get_profile_with_no_default_set() {
         Profile {
             host: "192.168.1.100".to_string(),
             user: "testuser".to_string(),
+            port: 22,
         },
     );
 
@@ -59,6 +60,7 @@ fn get_profile_with_valid_default() {
         Profile {
             host: "192.168.1.100".to_string(),
             user: "testuser".to_string(),
+            port: 22,
         },
     );
 
@@ -82,6 +84,7 @@ fn get_profile_with_invalid_default() {
         Profile {
             host: "192.168.1.100".to_string(),
             user: "testuser".to_string(),
+            port: 22,
         },
     );
 
@@ -103,6 +106,7 @@ fn get_profile_direct_alias() {
         Profile {
             host: "192.168.1.100".to_string(),
             user: "user1".to_string(),
+            port: 22,
         },
     );
     profiles.insert(
@@ -110,6 +114,7 @@ fn get_profile_direct_alias() {
         Profile {
             host: "192.168.1.101".to_string(),
             user: "user2".to_string(),
+            port: 22,
         },
     );
 
@@ -136,6 +141,7 @@ fn create_test_config() -> Config {
         Profile {
             host: "example.com".to_string(),
             user: "testuser".to_string(),
+            port: 22,
         },
     );
 
@@ -220,6 +226,7 @@ fn round_trip_with_multiple_profiles() {
         Profile {
             host: "192.168.1.100".to_string(),
             user: "admin".to_string(),
+            port: 22,
         },
     );
     profiles.insert(
@@ -227,6 +234,7 @@ fn round_trip_with_multiple_profiles() {
         Profile {
             host: "10.0.0.50".to_string(),
             user: "deploy".to_string(),
+            port: 22,
         },
     );
 

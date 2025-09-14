@@ -15,6 +15,8 @@ pub enum Commands {
         host: String,
         #[arg(long)]
         user: String,
+        #[arg(long, default_value = "22", help = "SSH port (default: 22)")]
+        port: u16,
         #[arg(short, long, help = "Skip SSH key copy")]
         skip_key: bool,
         #[arg(short = 'd', long, help = "Make this host the default")]
@@ -24,7 +26,11 @@ pub enum Commands {
     },
 
     /// Remove a host
-    Remove { alias: String },
+    Remove {
+        alias: String,
+        #[arg(short = 'y', long = "yes", help = "Skip confirmation prompt")]
+        yes: bool,
+    },
 
     /// List all configured hosts
     List,

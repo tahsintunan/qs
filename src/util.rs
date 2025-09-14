@@ -48,7 +48,10 @@ pub fn check_command(cmd: &str) -> bool {
 }
 
 pub fn setup_multiplex() -> Vec<String> {
-    let socket_dir = dirs::home_dir().unwrap().join(".ssh").join("sockets");
+    let socket_dir = dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".ssh")
+        .join("sockets");
     fs::create_dir_all(&socket_dir).ok();
 
     vec![
@@ -66,7 +69,9 @@ pub fn ssh_target(profile: &Profile) -> String {
 }
 
 pub fn ensure_ssh_key() -> PathBuf {
-    let ssh_dir = dirs::home_dir().unwrap().join(".ssh");
+    let ssh_dir = dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".ssh");
     fs::create_dir_all(&ssh_dir).ok();
 
     let key_path = ssh_dir.join("id_ed25519");
@@ -80,7 +85,10 @@ pub fn ensure_ssh_key() -> PathBuf {
             .args(["-N", ""]) // Empty passphrase
             .args(["-C", "qs-tool"])
             .output()
-            .expect("Failed to generate SSH key");
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to generate SSH key: {e}");
+                std::process::exit(1);
+            });
 
         if output.status.success() {
             println!("✓ SSH key created at {}", key_path.display());
@@ -133,7 +141,12 @@ pub fn remove_alias(config: &mut Config, alias: &str) -> Result<Vec<String>, Str
         match config.profiles.len() {
             0 => messages.push("  No aliases remaining".to_string()),
             1 => {
-                let new_default = config.profiles.keys().next().unwrap().clone();
+                let new_default = config
+                    .profiles
+                    .keys()
+                    .next()
+                    .expect("Internal error: profiles should not be empty")
+                    .clone();
                 config.default = Some(new_default.clone());
                 messages.push(format!("✓ Set '{new_default}' as new default"));
             }
@@ -169,6 +182,9 @@ pub fn copy_ssh_key_manual(profile: &Profile) {
 
     let mut cmd = Command::new("ssh");
     cmd.arg("-o").arg("StrictHostKeyChecking=accept-new");
+    if profile.port != 22 {
+        cmd.arg("-p").arg(profile.port.to_string());
+    }
     cmd.arg(ssh_target(profile));
     cmd.arg(remote_cmd);
 

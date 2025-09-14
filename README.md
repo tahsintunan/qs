@@ -26,8 +26,9 @@ cargo install qs
 
 ```bash
 # Setup (one time)
-qs init                                  # Create SSH keys
-qs add myserver --host 192.168.1.100 --user bob  # Add profile with alias 'myserver'
+qs init                                                   # Create SSH keys
+qs add myserver --host 192.168.1.100 --user bob           # Add profile with alias 'myserver'
+qs add dev --host 192.168.1.100 --user alice --port 2222  # Add with custom SSH port
 
 # Daily use (no passwords!)
 qs connect                               # SSH to default profile
