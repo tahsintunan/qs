@@ -258,3 +258,67 @@ fn round_trip_with_multiple_profiles() {
     assert_eq!(server2.host, "10.0.0.50");
     assert_eq!(server2.user, "deploy");
 }
+
+#[test]
+fn test_load_config_with_valid_port() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_path = temp_dir.path().join("config.toml");
+
+    let old_config_content = r#"
+default = "server1"
+
+[profiles.server1]
+host = "192.168.1.100"
+user = "admin"
+
+[profiles.server2]
+host = "10.0.0.50"
+user = "deploy"
+port = 22
+
+[profiles.server3]
+host = "10.0.0.69"
+user = "custom"
+port = 420
+"#;
+
+    fs::write(&config_path, old_config_content).unwrap();
+
+    let config = Config::load_from(config_path).unwrap();
+
+    let server1 = config.profiles.get("server1").unwrap();
+    assert_eq!(server1.host, "192.168.1.100");
+    assert_eq!(server1.user, "admin");
+    assert_eq!(server1.port, 22); // Should default to 22
+
+    let server2 = config.profiles.get("server2").unwrap();
+    assert_eq!(server2.host, "10.0.0.50");
+    assert_eq!(server2.user, "deploy");
+    assert_eq!(server2.port, 22);
+
+    let server3 = config.profiles.get("server3").unwrap();
+    assert_eq!(server3.host, "10.0.0.69");
+    assert_eq!(server3.user, "custom");
+    assert_eq!(server3.port, 420);
+}
+
+#[test]
+fn test_load_config_with_invalid_port() {
+    let temp_dir = TempDir::new().unwrap();
+    let config_path = temp_dir.path().join("config.toml");
+
+    let invalid_config_content = r#"
+[profiles.server1]
+host = "192.168.1.100"
+user = "admin"
+port = "invalid"
+"#;
+
+    fs::write(&config_path, invalid_config_content).unwrap();
+
+    let result = Config::load_from(config_path);
+
+    // This should fail because "invalid" is not a valid u16
+    assert!(result.is_err());
+    assert!(result.unwrap_err().contains("Invalid config file format"));
+}

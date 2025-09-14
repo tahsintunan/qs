@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Config {
     pub default: Option<String>,
     pub profiles: HashMap<String, Profile>,
@@ -77,5 +77,10 @@ impl Config {
 pub struct Profile {
     pub host: String,
     pub user: String,
+    #[serde(default = "default_port")]
     pub port: u16,
+}
+
+fn default_port() -> u16 {
+    22
 }
