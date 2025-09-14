@@ -13,6 +13,7 @@ fn remove_non_existent_alias() {
                 Profile {
                     host: "192.168.1.1".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles
@@ -37,6 +38,7 @@ fn remove_non_default_alias() {
                 Profile {
                     host: "192.168.1.1".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles.insert(
@@ -44,6 +46,7 @@ fn remove_non_default_alias() {
                 Profile {
                     host: "192.168.1.2".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles
@@ -68,6 +71,7 @@ fn remove_default_with_no_aliases_remaining() {
                 Profile {
                     host: "192.168.1.1".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles
@@ -98,6 +102,7 @@ fn remove_default_with_one_alias_remaining() {
                 Profile {
                     host: "192.168.1.1".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles.insert(
@@ -105,6 +110,7 @@ fn remove_default_with_one_alias_remaining() {
                 Profile {
                     host: "192.168.1.2".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles
@@ -136,6 +142,7 @@ fn remove_default_with_multiple_aliases_remaining() {
                 Profile {
                     host: "192.168.1.1".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles.insert(
@@ -143,6 +150,7 @@ fn remove_default_with_multiple_aliases_remaining() {
                 Profile {
                     host: "192.168.1.2".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles.insert(
@@ -150,6 +158,7 @@ fn remove_default_with_multiple_aliases_remaining() {
                 Profile {
                     host: "192.168.1.3".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles
@@ -182,6 +191,7 @@ fn remove_sequence_leaves_one_default() {
                 Profile {
                     host: "192.168.1.1".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles.insert(
@@ -189,6 +199,7 @@ fn remove_sequence_leaves_one_default() {
                 Profile {
                     host: "192.168.1.2".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles.insert(
@@ -196,6 +207,7 @@ fn remove_sequence_leaves_one_default() {
                 Profile {
                     host: "192.168.1.3".to_string(),
                     user: "admin".to_string(),
+                    port: 22,
                 },
             );
             profiles

@@ -44,7 +44,9 @@ qs add <alias> --host <host> --user <username>            # Add profile with ali
 qs add webserver --host 10.0.0.5 --user bob --skip-key    # Add without key setup
 qs add database --host 10.0.0.6 --user alice --is-default # Add and make default
 qs add webserver --host 10.0.0.8 --user admin --overwrite # Replace existing alias
-qs remove webserver                                       # Remove alias 'webserver'
+qs add staging --host 10.0.0.10 --user dev --port 2222    # Add with custom SSH port
+qs remove webserver                                       # Remove alias 'webserver' (asks for confirmation)
+qs remove webserver -y                                    # Remove alias without confirmation
 qs set-default database                                   # Set 'database' as default profile
 ```
 

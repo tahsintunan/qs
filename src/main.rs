@@ -67,6 +67,7 @@ fn main() {
             alias,
             host,
             user,
+            port,
             skip_key,
             is_default,
             overwrite,
@@ -86,12 +87,13 @@ fn main() {
                     eprintln!("Error: Alias '{alias}' already exists");
                     eprintln!("  Host: {}", existing_host.host);
                     eprintln!("  User: {}", existing_host.user);
+                    eprintln!("  Port: {}", existing_host.port);
                     eprintln!("\nUse --overwrite to replace the existing alias");
                     std::process::exit(1);
                 }
             }
 
-            let profile = Profile { host, user };
+            let profile = Profile { host, user, port };
 
             if !skip_key {
                 copy_ssh_key_manual(&profile);
@@ -110,26 +112,45 @@ fn main() {
             println!("✓ Added alias: {alias}");
         }
 
-        Commands::Remove { alias } => match remove_alias(&mut config, &alias) {
-            Ok(messages) => {
-                for message in messages {
-                    println!("{message}");
-                }
+        Commands::Remove { alias, yes } => {
+            if !yes {
+                print!("Are you sure you want to remove '{alias}'? [y/N]: ");
+                io::stdout().flush().unwrap_or(());
 
-                if let Err(e) = config.save() {
-                    eprintln!("Error saving config: {e}");
+                let mut input = String::new();
+                io::stdin().read_line(&mut input).unwrap_or_else(|_| {
+                    eprintln!("Failed to read input");
+                    std::process::exit(1);
+                });
+
+                let input = input.trim().to_lowercase();
+                if input != "y" && input != "yes" {
+                    println!("Removal cancelled");
+                    return;
+                }
+            }
+
+            match remove_alias(&mut config, &alias) {
+                Ok(messages) => {
+                    for message in messages {
+                        println!("{message}");
+                    }
+
+                    if let Err(e) = config.save() {
+                        eprintln!("Error saving config: {e}");
+                        std::process::exit(1);
+                    }
+                }
+                Err(error) => {
+                    eprintln!("{error}");
+                    eprintln!("\nAvailable aliases:");
+                    for alias_name in config.profiles.keys() {
+                        eprintln!("  - {alias_name}");
+                    }
                     std::process::exit(1);
                 }
             }
-            Err(error) => {
-                eprintln!("{error}");
-                eprintln!("\nAvailable aliases:");
-                for alias_name in config.profiles.keys() {
-                    eprintln!("  - {alias_name}");
-                }
-                std::process::exit(1);
-            }
-        },
+        }
 
         Commands::List => {
             if config.profiles.is_empty() {
@@ -146,7 +167,15 @@ fn main() {
                 } else {
                     ""
                 };
-                println!("  {}{}: {}@{}", alias, default, profile.user, profile.host);
+                let port_info = if profile.port != 22 {
+                    format!(":{}", profile.port)
+                } else {
+                    String::new()
+                };
+                println!(
+                    "  {}{}: {}@{}{}",
+                    alias, default, profile.user, profile.host, port_info
+                );
             }
         }
 
@@ -158,6 +187,9 @@ fn main() {
 
             let mut cmd = Command::new("ssh");
             cmd.args(setup_multiplex());
+            if profile.port != 22 {
+                cmd.arg("-p").arg(profile.port.to_string());
+            }
             cmd.arg(ssh_target(profile));
             cmd.status().ok();
         }
@@ -191,7 +223,12 @@ fn main() {
             cmd.arg("-az");
             cmd.arg("--progress");
             cmd.arg("-e");
-            cmd.arg(format!("ssh {}", setup_multiplex().join(" ")));
+            let ssh_opts = if profile.port != 22 {
+                format!("ssh -p {} {}", profile.port, setup_multiplex().join(" "))
+            } else {
+                format!("ssh {}", setup_multiplex().join(" "))
+            };
+            cmd.arg(ssh_opts);
             cmd.arg(absolute_source.to_string_lossy().to_string());
             cmd.arg(format!("{}:{}", ssh_target(profile), remote_path));
 
@@ -224,7 +261,12 @@ fn main() {
             cmd.arg("-az");
             cmd.arg("--progress");
             cmd.arg("-e");
-            cmd.arg(format!("ssh {}", setup_multiplex().join(" ")));
+            let ssh_opts = if profile.port != 22 {
+                format!("ssh -p {} {}", profile.port, setup_multiplex().join(" "))
+            } else {
+                format!("ssh {}", setup_multiplex().join(" "))
+            };
+            cmd.arg(ssh_opts);
             cmd.arg(format!("{}:{}", ssh_target(profile), remote_path));
             cmd.arg(absolute_dest.to_string_lossy().to_string());
 
@@ -250,6 +292,9 @@ fn main() {
 
             let mut ssh_cmd = Command::new("ssh");
             ssh_cmd.args(setup_multiplex());
+            if profile.port != 22 {
+                ssh_cmd.arg("-p").arg(profile.port.to_string());
+            }
             ssh_cmd.arg(ssh_target(profile));
             ssh_cmd.arg(cmd.join(" "));
             ssh_cmd.status().ok();
@@ -271,10 +316,13 @@ fn main() {
             };
 
             print!("Checking connection to {display_alias}... ");
-            io::stdout().flush().unwrap();
+            io::stdout().flush().unwrap_or(());
 
             let mut cmd = Command::new("ssh");
             cmd.args(setup_multiplex());
+            if profile.port != 22 {
+                cmd.arg("-p").arg(profile.port.to_string());
+            }
             cmd.arg("-O");
             cmd.arg("check");
             cmd.arg(ssh_target(profile));

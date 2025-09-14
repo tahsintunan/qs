@@ -44,7 +44,7 @@ impl Config {
 
     pub fn path() -> PathBuf {
         dirs::home_dir()
-            .unwrap()
+            .unwrap_or_else(|| PathBuf::from("."))
             .join(".config")
             .join("qs")
             .join("config.toml")
@@ -77,4 +77,5 @@ impl Config {
 pub struct Profile {
     pub host: String,
     pub user: String,
+    pub port: u16,
 }
