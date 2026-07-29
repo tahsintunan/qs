@@ -7,6 +7,7 @@ Dead simple, zero-friction SSH wrapper that makes working with remote machines e
 - **One-time setup**: Add a host once, never type passwords again
 - **SSH multiplexing**: First connection opens, rest are instant
 - **Simple file transfer**: `qs send file.txt /remote/` - that's it
+- **Detached execution**: fire-and-forget remote jobs with `-d` or `--tmux`
 - **Smart defaults**: Works without specifying hosts
 - **Cross-platform**: macOS and Linux
 
@@ -35,6 +36,8 @@ qs connect                               # SSH to default profile
 qs send project.tar.gz /tmp/             # Upload file
 qs get /var/log/app.log ./               # Download file
 qs exec "docker ps"                      # Run remote command
+qs exec -d -- python train.py            # Run detached (nohup, survives disconnect)
+qs exec --tmux train -- python train.py  # Run in a remote tmux session 'train'
 
 # Host management
 qs list                                  # Show all profiles

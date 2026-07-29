@@ -48,6 +48,19 @@ pub enum Commands {
     Exec {
         #[arg(default_value = "default")]
         alias: String,
+        #[arg(
+            short = 'd',
+            long,
+            help = "Run detached on the remote host (nohup; prints pid and log file)"
+        )]
+        detach: bool,
+        #[arg(
+            long,
+            value_name = "SESSION",
+            conflicts_with = "detach",
+            help = "Run in a detached remote tmux session (requires tmux on the host)"
+        )]
+        tmux: Option<String>,
         #[arg(last = true)]
         cmd: Vec<String>,
     },

@@ -12,8 +12,9 @@ use config::Config;
 use crate::command::Commands;
 use crate::config::Profile;
 use crate::util::{
-    check_dependencies, copy_ssh_key_manual, ensure_ssh_key, remove_alias, setup_multiplex,
-    ssh_target, validate_alias,
+    build_detach_command, build_tmux_command, check_dependencies, copy_ssh_key_manual,
+    ensure_ssh_key, exit_code, remove_alias, setup_multiplex, ssh_target, validate_alias,
+    validate_tmux_session,
 };
 
 #[derive(Parser)]
@@ -191,7 +192,14 @@ fn main() {
                 cmd.arg("-p").arg(profile.port.to_string());
             }
             cmd.arg(ssh_target(profile));
-            cmd.status().ok();
+
+            match cmd.status() {
+                Ok(status) => std::process::exit(exit_code(status)),
+                Err(e) => {
+                    eprintln!("Error: Failed to run ssh: {e}");
+                    std::process::exit(1);
+                }
+            }
         }
 
         Commands::Send { source, dest } => {
@@ -278,6 +286,8 @@ fn main() {
 
         Commands::Exec {
             alias: alias_name,
+            detach,
+            tmux,
             cmd,
         } => {
             if cmd.is_empty() {
@@ -285,10 +295,24 @@ fn main() {
                 std::process::exit(1);
             }
 
+            if let Some(session) = &tmux {
+                if let Err(error) = validate_tmux_session(session) {
+                    eprintln!("Error: {error}");
+                    std::process::exit(1);
+                }
+            }
+
             let profile = config.get_profile(&alias_name).unwrap_or_else(|err| {
                 eprintln!("{err}");
                 std::process::exit(1);
             });
+
+            let joined = cmd.join(" ");
+            let remote_cmd = match &tmux {
+                Some(session) => build_tmux_command(session, &joined),
+                None if detach => build_detach_command(&joined),
+                None => joined,
+            };
 
             let mut ssh_cmd = Command::new("ssh");
             ssh_cmd.args(setup_multiplex());
@@ -296,8 +320,15 @@ fn main() {
                 ssh_cmd.arg("-p").arg(profile.port.to_string());
             }
             ssh_cmd.arg(ssh_target(profile));
-            ssh_cmd.arg(cmd.join(" "));
-            ssh_cmd.status().ok();
+            ssh_cmd.arg(remote_cmd);
+
+            match ssh_cmd.status() {
+                Ok(status) => std::process::exit(exit_code(status)),
+                Err(e) => {
+                    eprintln!("Error: Failed to run ssh: {e}");
+                    std::process::exit(1);
+                }
+            }
         }
 
         Commands::Status { alias } => {

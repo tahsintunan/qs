@@ -68,6 +68,11 @@ qs exec "ls -la"
 qs exec webserver "nvidia-smi"
 qs exec "cd /app && docker-compose up -d"
 
+# Detached execution (keeps running after you disconnect)
+qs exec -d -- python train.py             # nohup on the remote; prints pid + log file
+qs exec webserver -d -- ./backup.sh       # detach on a specific host
+qs exec --tmux train -- python train.py   # run inside remote tmux session 'train'
+
 # Manage hosts
 qs list                 # Show all configured aliases
 qs status               # Check default connection
@@ -104,6 +109,10 @@ user = "admin"
 - Use `alias:path` syntax to specify different hosts in file operations
 - All rsync flags: `-avz --progress` (archive, verbose, compress, progress bar)
 - Works on macOS and Linux (checks for dependencies)
+- For `exec`, flags go before `--`; everything after `--` is the remote command
+- `-d` logs to a `mktemp`-created file under `/tmp` on the remote (path is printed)
+- `--tmux` requires tmux on the remote host and the session must not already exist (reattach with `tmux attach -t <session>`)
+- `exec` and `connect` exit with the remote command's exit code; 255 usually means the SSH connection itself failed
 
 ## Troubleshooting
 
