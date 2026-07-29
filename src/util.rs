@@ -1,7 +1,7 @@
 use std::fs;
 
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 
 use crate::config::{Config, Profile};
 
@@ -158,6 +158,66 @@ pub fn remove_alias(config: &mut Config, alias: &str) -> Result<Vec<String>, Str
     }
 
     Ok(messages)
+}
+
+pub fn shell_escape_single(s: &str) -> String {
+    format!("'{}'", s.replace('\'', r"'\''"))
+}
+
+pub fn build_detach_command(cmd: &str) -> String {
+    // All three fds must be detached from the session, or ssh keeps it open
+    // until the background child exits. `|| exit 1` keeps the mktemp
+    // assignment in the foreground and surfaces its failure.
+    format!(
+        "__qs_log=\"$(mktemp /tmp/qs-detach.XXXXXX)\" || exit 1; \
+         nohup sh -c {} >\"$__qs_log\" 2>&1 </dev/null & \
+         echo \"✓ Detached (pid $!)\"; echo \"  Log: $__qs_log\"",
+        shell_escape_single(cmd)
+    )
+}
+
+pub fn build_tmux_command(session: &str, cmd: &str) -> String {
+    format!(
+        "tmux new-session -d -s {} {} && \
+         echo \"✓ tmux session '{session}' started (attach: tmux attach -t {session})\"",
+        shell_escape_single(session),
+        shell_escape_single(cmd)
+    )
+}
+
+pub fn validate_tmux_session(name: &str) -> Result<(), String> {
+    if name.is_empty() {
+        return Err("tmux session name cannot be empty".to_string());
+    }
+
+    if name.starts_with('-') {
+        return Err("tmux session name cannot start with '-'".to_string());
+    }
+
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        return Err("tmux session name may only contain letters, digits, '-' and '_'".to_string());
+    }
+
+    Ok(())
+}
+
+pub fn exit_code(status: ExitStatus) -> i32 {
+    if let Some(code) = status.code() {
+        return code;
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(signal) = status.signal() {
+            return 128 + signal;
+        }
+    }
+
+    1
 }
 
 pub fn copy_ssh_key_manual(profile: &Profile) {
